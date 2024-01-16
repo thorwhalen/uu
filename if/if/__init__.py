@@ -1,4 +1,6 @@
-"""Beautiful Soup
+"""Face-lift makeing BeautifulSoup even more beautiful
+
+Beautiful Soup
 Elixir and Tonic
 "The Screen-Scraper's Friend"
 http://www.crummy.com/software/BeautifulSoup/

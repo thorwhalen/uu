@@ -144,102 +144,114 @@ def indexed_sliding_window_chunk_iter(
     it, chk_size, chk_step=None, start_at=None, stop_at=None, key=None, return_tail=True
 ):
     """
-      a function to get (an iterator of) segments (bt, tt) of chunks from (an iterator of) ordered timestamps,
-      given a chk_size, chk_step, and a start_at time.
-      :param it:
-      :param chk_size:
-      :param chk_step:
-      :param start_at:
-      :param key:
-      :param return_tail:
-      :return:
+    A function to get (an iterator of) segments (bt, tt) of chunks from
+    (an iterator of) ordered timestamps, given a chk_size, chk_step, and a start_at time.
 
-      1) If stop_at is not None and return_tail is False:
-         will return all chunks with maximum element (in it or otherwise) less or equal to stop_at.
+    :param it:
+    :param chk_size:
+    :param chk_step:
+    :param start_at:
+    :param key:
+    :param return_tail:
+    :return:
 
-      2) If stop_at is not None and return_tail is True:
-         will return all chunks with minimum element (in it or otherwise) less or equal to stop_at.
+    1) If stop_at is not None and return_tail is False:
+     will return all chunks with maximum element (in it or otherwise) less or equal to stop_at.
 
-      3) If stop_at is None and return_tail is False:
-         will return all chunks with maximum element less or equal the largest term in it.
-         In other words, stop_at defaults to the last element of it and the behavior is as 1)
+    2) If stop_at is not None and return_tail is True:
+     will return all chunks with minimum element (in it or otherwise) less or equal to stop_at.
 
-      4) If stop_at is None and return_tail is True:
-         will return all chunks with minimum element less or equal the largest term in it.
-         In other words, stop_at defaults to the last element of it and the behavior is as 2)
+    3) If stop_at is None and return_tail is False:
+     will return all chunks with maximum element less or equal the largest term in it.
+     In other words, stop_at defaults to the last element of it and the behavior is as 1)
 
-      See  /Users/MacBook/Desktop/Otosense/sound_sketch/ca/ChunkIteratorNB.html for examples with pictures
+    4) If stop_at is None and return_tail is True:
+     will return all chunks with minimum element less or equal the largest term in it.
+     In other words, stop_at defaults to the last element of it and the behavior is as 2)
 
-      #typical example, last two chunks contains 13 twice since chk_step=2 and return_tail=True
-      >>> chk_size=2
-      >>> chk_step=1
-      >>> start_at=0
-      >>> stop_at= None
-      >>> return_tail = True
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[0], [2], [2, 3], [3], [], [], [7], [7], [9], [9, 10], [10], [], [13], [13]]
+    Typical example, last two chunks contains 13 twice since ``chk_step=2`` and
+    ``return_tail=True``
 
-      #similar to previous but with a start_at non zero and return_tail=False. The later condition
-      #implies that 13 is returned only once
-      >>> chk_size=3
-      >>> chk_step=2
-      >>> start_at=1
-      >>> stop_at= None
-      >>> return_tail = False
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[2, 3], [3], [7], [7, 9], [9, 10], [13]]
+    >>> chk_size=2
+    >>> chk_step=1
+    >>> start_at=0
+    >>> stop_at= None
+    >>> return_tail = True
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[0], [2], [2, 3], [3], [], [], [7], [7], [9], [9, 10], [10], [], [13], [13]]
 
-      #this time stop_at is set to 11, consequently no chunk will contain a higher value, even though 13
-      #is "within reach" of the last chunk since 11+2=13. This demonstrate the choice of having the
-      #trailing chunk to not contain any value higher than stop_at.
-      >>> chk_size=2
-      >>> chk_step=4
-      >>> start_at=2
-      >>> stop_at= 11
-      >>> return_tail = True
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[2, 3], [7], [10]]
+    Similar to previous but with a start_at non zero and return_tail=False.
+    The later condition implies that 13 is returned only once
 
-      #rather typical example. Since stop_at=None, each element of it belongs to at least one chunk
-      >>> chk_size=5
-      >>> chk_step=4
-      >>> start_at=0
-      >>> stop_at= None
-      >>> return_tail = True
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[0, 2, 3], [7], [9, 10], [13]]
+    >>> chk_size=3
+    >>> chk_step=2
+    >>> start_at=1
+    >>> stop_at= None
+    >>> return_tail = False
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[2, 3], [3], [7], [7, 9], [9, 10], [13]]
 
-      #chk_step is higher than ch_size here, we miss all terms in it which are not multiple of 6 here.
-      >>> chk_size=1
-      >>> chk_step=6
-      >>> start_at=0
-      >>> stop_at= None
-      >>> return_tail = True
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[0], [], []]
+    This time stop_at is set to 11, consequently no chunk will contain a higher
+    value, even though 13 is "within reach" of the last chunk since 11+2=13.
+    This demonstrate the choice
+    of having the trailing chunk to not contain any value higher than stop_at.
 
-      #since the stop_at value is an element of it, we end up having it in at least one chunk. Even with a larger
-      #chk_step of 3 we would not have 13 in any chunk since it is bove the stop_at value
-      >>> chk_size=4
-      >>> chk_step=2
-      >>> start_at=1
-      >>> stop_at= 10
-      >>> return_tail = True
-      >>> it = iter([0,2,3,7,9,10,13])
-      >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
-      >>> print list(A)
-      [[2, 3], [3], [7], [7, 9, 10], [9, 10]]
-      """
+    >>> chk_size=2
+    >>> chk_step=4
+    >>> start_at=2
+    >>> stop_at= 11
+    >>> return_tail = True
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[2, 3], [7], [10]]
+
+    Rather typical example. Since stop_at=None, each element of it belongs to at
+    least one chunk
+
+    >>> chk_size=5
+    >>> chk_step=4
+    >>> start_at=0
+    >>> stop_at= None
+    >>> return_tail = True
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[0, 2, 3], [7], [9, 10], [13]]
+
+    ``chk_step`` is higher than ch_size here, we miss all terms in it which are
+    not multiple of 6 here.
+
+    >>> chk_size=1
+    >>> chk_step=6
+    >>> start_at=0
+    >>> stop_at= None
+    >>> return_tail = True
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[0], [], []]
+
+    Since the stop_at value is an element of it, we end up having it in at least
+    one chunk.
+    Even with a larger ``chk_step`` of 3 we would not have 13 in any chunk since it is
+    bove the ``stop_at`` value
+
+    >>> chk_size=4
+    >>> chk_step=2
+    >>> start_at=1
+    >>> stop_at= 10
+    >>> return_tail = True
+    >>> it = iter([0,2,3,7,9,10,13])
+    >>> A = indexed_sliding_window_chunk_iter(it, chk_size, chk_step, start_at, stop_at, return_tail=return_tail)
+    >>> print list(A)
+    [[2, 3], [3], [7], [7, 9, 10], [9, 10]]
+
+    """
 
     if chk_step is None:
         chk_step = chk_size
@@ -363,8 +375,8 @@ def fast_chunker(
     it, chk_size, chk_step=None, start_at=0, stop_at=None, return_tail=False
 ):
     """
-      a function to get (an iterator of) segments (bt, tt) of chunks from the iterator of {1,2,3...end},
-      given a chk_size, chk_step, and a start_at time.
+      A function to get (an iterator of) segments (bt, tt) of chunks from the iterator
+      of {1,2,3...end}, given a chk_size, chk_step, and a start_at time.
       :param it: iterator xrange(start,stop,1)
       :param chk_size: length of the chunks
       :param chk_step: step between chunks
@@ -389,15 +401,16 @@ def fast_chunker(
          will return all chunks with minimum element less or equal the largest term in it.
          In other words, stop_at defaults to the last element of it and the behavior is as 2)
 
-      See  /Users/MacBook/Desktop/Otosense/sound_sketch/ca/ChunkIteratorNB.html for examples with pictures
-
       >>> chk_size = 3
       >>> chk_step = 2
       >>> start_at = 1
       >>> stop_at = None
       >>> return_tail = True
       >>> it = iter(xrange(1,17,1))
-      >>> A = fast_chunker(it, chk_size=chk_size, start_at=start_at, chk_step=chk_step,stop_at=stop_at,return_tail=return_tail)
+      >>> A = fast_chunker(
+      ...   it, chk_size=chk_size, start_at=start_at, chk_step=chk_step,
+      ...   stop_at=stop_at, return_tail=return_tail
+      ... )
       >>> print list(A)
       [[1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9], [9, 10, 11], [11, 12, 13], [13, 14, 15], [15, 16]]
 
