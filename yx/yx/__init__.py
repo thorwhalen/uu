@@ -1,11 +1,10 @@
 """Dataframe manipulation tools"""
-__author__ = 'thorwhalen'
-"""
-Includes functions to manipulate dataframes
-"""
+
 import collections
 from collections import Counter
 from itertools import chain
+from typing import Iterable, Sized
+from functools import partial
 
 from numbers import Number
 
@@ -13,9 +12,7 @@ import pandas as pd
 import numpy as np
 
 from ut.daf.check import has_columns
-from ut.pstr.trans import to_unicode_or_bust
 import ut.util.var as util_var
-
 import ut.util.ulist as util_ulist
 import ut.pcoll.order_conserving as colloc
 import ut.daf.diagnosis as daf_diagnosis
@@ -40,14 +37,76 @@ def none_or_type(x):
 
 
 def type_counts(df):
-    return {k: dict(Counter(v)) for k, v in df.applymap(none_or_type).items()}
+    return {k: dict(Counter(v)) for k, v in df.map(none_or_type).items()}
 
 
-int_types = {int, np.int0, np.int8, np.int16, np.float64, np.float128}
-float_types = {float, np.float16, np.float32, np.float64, np.float128}
-
-
+int_types = {int, np.int0, np.int8, np.int16, np.float64}
+float_types = {float, np.float16, np.float32, np.float64}
 # TODO: Find or make numpy type hierarchy poset (total order?) and write "maximal casting" function
+
+
+def is_empty(cell):
+    """
+    Check if a DataFrame cell is considered "empty". A cell is deemed empty if it
+    meets any of the following criteria:
+    - It is a NaN-like value (e.g., np.nan, None).
+    - It is an empty iterable (e.g., empty list), but not an empty string or bytes.
+    - It is a falsy value, excluding the boolean value False itself.
+
+    :param cell: The cell value to check.
+    :return: True if the cell is considered empty, otherwise False.
+
+    Examples:
+    >>> is_empty(None)
+    True
+    >>> is_empty([])
+    True
+    >>> is_empty("")
+    False
+    >>> is_empty(0)
+    True
+    >>> is_empty(False)
+    False
+    >>> is_empty([1, 2])
+    False
+    """
+    if isinstance(cell, Sized):
+        return len(cell) == 0
+    if (
+        # Check for empty iterables, excluding strings and bytes
+        (bool(cell) is False and cell is not False)
+        or
+        # Check for NaN-like values
+        (not isinstance(cell, Iterable) and pd.isnull(cell))
+    ):
+        return True
+    # Check for other falsy values, excluding False itself
+    return False
+
+
+def conditional_replace(df, replacement, condition):
+    """
+    Replace values in a DataFrame based on a condition.
+
+    >>> df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+    >>> conditional_replace(df, 0, lambda x: x % 2 == 0)
+       a  b
+    0  1  4
+    1  0  5
+    2  3  0
+
+    """
+
+    def replacer(x):
+        if condition(x):
+            return replacement
+        return x
+
+    return df.map(replacer)
+
+
+replace_empty_cells_with = partial(conditional_replace, condition=is_empty)
+replace_empty_cells_with.__doc__ = "Replace empty cells with a given value."
 
 
 def common_numerical_type(iterable):
@@ -395,7 +454,7 @@ def index_with_range(df):
 
 
 def lower_series(sr):
-    return sr.apply(lambda x: to_unicode_or_bust(x).lower())
+    return sr.apply(lambda x: x.lower())
 
 
 def lower_column(df, col):

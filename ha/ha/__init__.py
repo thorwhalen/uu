@@ -1,6 +1,4 @@
 """Joke access and generation tools"""
-import pyjokes
-from pyjokes import *
+from ha.vendors import *  # what is imported will depend on what tools are installed
+from ha.dataset import joke_datasets, all_jokes_store
 
-import laugh
-from laugh import *
