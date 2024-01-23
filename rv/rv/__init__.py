@@ -82,6 +82,7 @@ def random_word(length, alphabet, concat_func=add):
         A word (whose type depends on what concatenating elements from alphabet produces).
 
     Not making this a proper doctest because I don't know how to seed the global random temporarily
+    
     >>> t = random_word(4, 'abcde');  # e.g. 'acae'
     >>> t = random_word(5, ['a', 'b', 'c']);  # e.g. 'cabba'
     >>> t = random_word(4, [[1, 2, 3], [40, 50], [600], [7000]]);  # e.g. [40, 50, 7000, 7000, 1, 2, 3]
@@ -297,6 +298,7 @@ def format_params_in_str_format(format_string):
     Returns:
         A list of parameter indices used in the format string, in the order they appear, with repetition.
         Parameter indices could be integers, strings, or None (to denote "automatic field numbering".
+        
     >>> format_string = '{0} (no 1) {2}, and {0} is a duplicate, {} is unnamed and {name} is string-named'
     >>> format_params_in_str_format(format_string)
     [0, 2, 0, None, 'name']
@@ -340,6 +342,7 @@ def args_and_kwargs_indices(format_string):
     Returns:
         None, None if format_string is an automatic specification
         set_of_indices_used, set_of_fields_used if it is a manual specification
+
     >>> format_string = '{0} (no 1) {2}, {see} this, {0} is a duplicate (appeared before) and {name} is string-named'
     >>> assert args_and_kwargs_indices(format_string) == ({0, 2}, {'name', 'see'})
     >>> format_string = 'This is a format string with only automatic field specification: {}, {}, {} etc.'
