@@ -11,8 +11,8 @@ Text feature extraction.
 >>> s = ['A-B-C A-B A B', 'A-B C B']
 >>> ttok = TreeTokenizer(tokenizers=t, token_prefixes=p, min_df=2)
 >>> _ = ttok.fit(text_collection=s)
->>> ttok.transform(['A-B C B']).tolist()
-[['level_1=A-B', 'level_1=B', 'level_2=C']]
+>>> sorted(ttok.transform(['A-B C B']).tolist()[0])
+['level_1=A-B', 'level_1=B', 'level_2=C']
 """
 
 __author__ = 'thor'
@@ -42,6 +42,36 @@ def mk_url_count_vectorizer(
     binary=True,
     **kwargs
 ):
+    """
+        Create a CountVectorizer configured for URL tokenization.
+
+    Parameters
+    ----------
+    preprocessor : callable, optional
+        Extracts the path part of a given URL by default.
+    max_df : float or int, optional
+        Maximum document frequency (default=1.0).
+    min_df : float or int, optional
+        Minimum document frequency (default=1).
+    max_features : int, optional
+        Maximum vocabulary size.
+    binary : bool, optional
+        If True, transform counts to 1/0 (default=True).
+    **kwargs : dict
+        Additional CountVectorizer arguments.
+
+    Returns
+    -------
+    CountVectorizer
+        Configured with a TreeTokenizer-based tokenizer.
+
+    Examples
+    --------
+    >>> cv = mk_url_count_vectorizer()
+    >>> X = cv.fit_transform(['http://example.com/path/to/page'])
+    >>> sorted(cv.vocabulary_.keys())  # doctest: +NORMALIZE_WHITESPACE
+    ['url=/path/to/page', 'url_section=page', 'url_section=path', 'url_section=to', 'url_word=page', 'url_word=path', 'url_word=to']
+    """
     tokenizer = TreeTokenizer.mk_url_tree_tokenizer(
         max_df=max_df, min_df=min_df
     ).tokenize
@@ -154,8 +184,8 @@ class TreeTokenizer(BaseEstimator, TransformerMixin):
     >>> s = ['A-B-C A-B A B', 'A-B C B']
     >>> ttok = TreeTokenizer(tokenizers=t, token_prefixes=p, min_df=2)
     >>> _ = ttok.fit(text_collection=s)
-    >>> ttok.transform(['A-B C B']).tolist()
-    [['level_1=A-B', 'level_1=B', 'level_2=C']]
+    >>> sorted(ttok.transform(['A-B C B']).tolist()[0])
+    ['level_1=A-B', 'level_1=B', 'level_2=C']
     """
 
     def __init__(
@@ -370,6 +400,17 @@ class TreeTokenizer(BaseEstimator, TransformerMixin):
 
 
 class MultiTreeTokenizer(BaseEstimator, TransformerMixin):
+    """
+    A MultiTreeTokenizer is a collection of TreeTokenizers, one for each column of a dataframe.
+    It is used to tokenize a dataframe, returning a list of tokens for each row, where each token is the union of the
+    tokens of the corresponding column.
+
+    Params:
+        * tree_tokenizers: A list of TreeTokenizers, one for each column of the dataframe
+
+
+    """
+
     def __init__(self, tree_tokenizers=None):
         self.tree_tokenizers = tree_tokenizers
 
@@ -410,6 +451,10 @@ class MultiTreeTokenizer(BaseEstimator, TransformerMixin):
 
 
 class TreeCountVectorizer(CountVectorizer):
+    """
+    A CountVectorizer that uses a TreeTokenizer to tokenize the text.
+    """
+
     def __init__(
         self,
         preprocessor=None,

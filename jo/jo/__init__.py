@@ -3,7 +3,6 @@
 Automatically making flask webservices from python objects
 
 """
-
 from numpy import ndarray
 from pandas import Series, DataFrame
 import re
@@ -168,7 +167,7 @@ class ObjWrapper(object):
         debug=0,
     ):
         """
-        An class to wrap a "controller" class for a web service API.
+        A class to wrap a "controller" class for a web service API.
         It takes care of LRU caching objects constructed before (so they don't need to be re-constructed for every
         API call), and converting request.json and request.args arguments to the types that will be recognized by
         the method calls.
