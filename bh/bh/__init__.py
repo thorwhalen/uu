@@ -1,4 +1,16 @@
-"""Fuzzy Linear Discriminant Analysis"""
+"""Fuzzy Linear Discriminant Analysis
+
+This module implements Fuzzy Linear Discriminant Analysis (FLDA), an extension of
+traditional LDA that allows for fuzzy or probabilistic class memberships. This makes
+it suitable for situations where instances can partially belong to multiple classes.
+
+Main Components:
+- FuzzyLDA: A classifier that implements Fuzzy Linear Discriminant Analysis
+- sphericize: A utility function to transform data to have spherical covariance
+
+The implementation is compatible with scikit-learn's API, allowing for easy integration
+into machine learning pipelines.
+"""
 
 import numpy as np
 import pandas as pd
@@ -33,8 +45,7 @@ def rescale_dict(dictionary, scalar):
 
 
 def class_freqs(y, sample_weight):
-    """Returns a dict of class frequencies
-    """
+    """Returns a dict of class frequencies"""
     weighted_dict = []
     for scalar, dictionary in zip(sample_weight, y):
         weighted_dict.append(rescale_dict(dictionary, scalar))
@@ -79,6 +90,35 @@ def lda_decision_function(class_freqs, class_means, covar, X):
 
 
 class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
+    """Fuzzy Linear Discriminant Analysis.
+
+    A classifier that implements Fuzzy Linear Discriminant Analysis, which extends
+    traditional LDA to work with fuzzy or probabilistic class memberships. This allows
+    for instances to partially belong to multiple classes.
+
+    Parameters
+    ----------
+    solver : str, default='eigen'
+        Solver to use for calculating the LDA transformation.
+        Currently only 'eigen' is supported.
+    n_components : int, default=None
+        Number of components to keep. If None, will retain all components up to
+        min(n_features, n_classes-1).
+
+    Attributes
+    ----------
+    scalings_ : array, shape (n_features, n_components)
+        The learned linear transformation.
+    coef_ : array, shape (n_classes, n_features)
+        Weight vectors for each class.
+    means_ : array, shape (n_classes, n_features)
+        Class-wise means.
+    explained_variance_ratio_ : array, shape (n_components,)
+        Percentage of variance explained by each of the selected components.
+    classes_ : array of shape (n_classes,)
+        Unique class labels.
+    """
+
     def __init__(self, solver='eigen', n_components=None):
         self.solver = solver
         self.n_components = n_components
@@ -184,8 +224,7 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
         return weights_array
 
     def within_scatter_matrix(self, X, y, sample_weight):
-        """computes the within scatter matrix S_w
-        """
+        """computes the within scatter matrix S_w"""
 
         within_scatter_matrix = []
         for label in self.all_labels:
@@ -205,8 +244,7 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
         return np.array(within_scatter_matrix).mean(axis=0)
 
     def within_scatter_matrix_list(self, X, y, sample_weight):
-        """computes the within scatter matrix S_w
-        """
+        """computes the within scatter matrix S_w"""
 
         within_scatter_matrix = []
         for label in self.all_labels:
@@ -243,19 +281,28 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
         return np.sum(Sb_list, axis=0)
 
     def fit(self, X, y, sample_weight=None):
-        """Fit LinearDiscriminantAnalysis model according to the given
-           training data and parameters.
+        """Fit the Fuzzy LDA model according to the given training data and parameters.
 
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
-            Input data.
+            Training data.
 
         y : list of dicts, shape (n_samples,)
-            Labels.
+            Target values. Each element should be a dictionary mapping class labels
+            to membership values (typically in [0,1]). For hard classification,
+            each dict will have a single key with value 1.0.
+            If elements are not dictionaries, they will be converted to
+            {element: 1.0} dictionaries.
 
-        sample_weight : array-like (n_samples)
-            Weights of the data points.
+        sample_weight : array-like, shape (n_samples,), default=None
+            Weights applied to individual samples.
+            If None, then samples are equally weighted.
+
+        Returns
+        -------
+        self : object
+            Returns self.
         """
 
         if sample_weight is None:
@@ -312,6 +359,7 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
 
     def transform(self, X):
         """Project data to maximize class separation.
+
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -328,7 +376,8 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
         return X_new[:, : self._max_components]  # done
 
     def predict_proba(self, X):
-        """Assign new point to a class.
+        """Predict class probabilities for samples in X.
+
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -337,7 +386,7 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
         Returns
         -------
         probas : array, shape (n_samples, n_classes)
-            Predicted probas.
+            Class probabilities for each sample.
         """
         check_is_fitted(self, ['scalings_'], all_or_any=any)
         covar = np.array(self.covariance_)
@@ -362,9 +411,24 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
             return prob
 
     def predict(self, X, sample_weight=None):
+        """Predict class labels for samples in X.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        sample_weight : array-like, shape (n_samples,), default=None
+            Weights applied to individual samples.
+            If None, then samples are equally weighted.
+
+        Returns
+        -------
+        y_pred : array, shape (n_samples,)
+            Predicted class labels.
+        """
         if sample_weight is None:
             sample_weight = np.ones(len(X))
-        return np.argmax(self.predict_proba(X, sample_weight), axis=1)
+        return np.argmax(self.predict_proba(X), axis=1)
 
     def extract_more_dim(self, X, y, sample_weight, n_dim):
 
@@ -389,16 +453,27 @@ class FuzzyLDA(BaseEstimator, LinearClassifierMixin, TransformerMixin):
 
 
 def sphericize(X, y, sample_weight=None):
-    """Make the dataset spherical.
+    """Transform a dataset to have spherical covariance.
+
+    Performs a linear transformation of the input data that makes the
+    within-class covariance spherical (identity matrix). This is a useful
+    preprocessing step for many classification algorithms.
+
     Parameters
     ----------
     X : array-like, shape (n_samples, n_features)
-            Input data.
+        Input data.
     y : list of dicts, shape (n_samples,)
-            Labels.
-    sample_weight : array-like (n_samples)
-            Weights of the data points.
+        Labels, where each element is a dictionary mapping class labels
+        to membership values.
+    sample_weight : array-like, shape (n_samples,), default=None
+        Weights applied to individual samples.
+        If None, then samples are equally weighted.
 
+    Returns
+    -------
+    X_spherical : array, shape (n_samples, n_features)
+        Transformed data with spherical covariance.
     """
 
     if sample_weight is None:

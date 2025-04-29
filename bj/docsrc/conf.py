@@ -46,6 +46,8 @@ extensions = [
     'sphinx.ext.todo',  # Support for todo items
     'sphinx.ext.viewcode',  # Add links to highlighted source code
     'recommonmark',  # Parse .md files
+    'sphinx.ext.mathjax',  # Support for math equations
+    'sphinx_markdown_tables',  # Support for tables in markdown
 ]
 
 # Add any paths that contain templates here, relative to this directory.

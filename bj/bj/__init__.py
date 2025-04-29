@@ -1,4 +1,9 @@
-"""Generating hierarchical data"""
+"""Generating hierarchical data
+
+This module provides tools for generating synthetic hierarchical cluster data.
+The main functionality is creating nested, hierarchical blob clusters for
+testing clustering algorithms and hierarchical data visualization techniques.
+"""
 
 __author__ = 'thor'
 
@@ -16,29 +21,51 @@ def make_hblobs(
     shuffle=True,
     random_state=None,
 ):
-    """
-    It uses the sklearn.datasets make_blobs to generate "hierarchical blobs".
+    """Generate hierarchical blob clusters for clustering analysis.
 
-    If you call it with an integer centers, it will just call make_blobs normally.
+    This function extends the sklearn.datasets.make_blobs functionality to create
+    hierarchical, nested cluster structures. It works recursively to generate multi-level
+    hierarchical data.
 
-    But if you call it with a list of integer centers, it will call make_blobs recursively to choose centers
-    centered on the centers of the last iteration.
-    The actual number of centers that it will create is prod(centers).
+    Parameters
+    ----------
+    n_samples : int, default=100
+        The total number of points to generate.
+    n_features : int, default=2
+        The number of features for each sample.
+    centers : int or list of int, default=(2, 3)
+        If int: Number of centers to generate (passed directly to make_blobs).
+        If list of int: Creates hierarchical centers where each number represents
+        the branching factor at each level. The total number of leaf centers
+        will be the product of all numbers in the list.
+    cluster_std : float or list of float, default=1.0
+        The standard deviation of the clusters.
+        If float: Same standard deviation for all levels.
+        If list: Must match the length of centers, with each value representing
+        the relative spread at each hierarchical level.
+    center_box : tuple of float (min, max), default=(-10.0, 10.0)
+        The bounding box for each cluster center.
+    shuffle : bool, default=True
+        Whether to shuffle the samples.
+    random_state : int or RandomState instance, default=None
+        Determines random number generation for dataset creation.
 
-    The cluster_std argument can also be a number or a list of numbers (of the same length as centers)
-    If cluster_std is a number, it is immediately changed to be a list repeating that same number and then
-    used as follows:
-        * In the first step, we used cluster_std[0] as the cluster_std of the make_blobs() call
-        * In every subsequent step, we multiply cluster_std[i] by the minimum distance between the centers
+    Returns
+    -------
+    X : ndarray of shape (n_samples, n_features)
+        The generated samples.
+    y : ndarray of shape (n_samples,)
+        The integer labels for cluster membership of each sample.
 
-    Example:
-        make_hblobs(n_samples=100, centers=[2, 3, 4])
-    it will use make_blobs with with n_samples=2 to get 2 points.
-    These points will then be passed, as centers of a next call to make_blobs to get 6 (=2*3, I swear!) points,
-    3 centered on the first center, 3 centered on the seconds center.
-    We now have 6 centers.
-    We draw 4 points around each of these 6 centers to get 24 centers.
-    Now that we have all our centers, we simply call the normal make_blobs with them (asking for n_samples=100))
+    Examples
+    --------
+    >>> from bj import make_hblobs
+    >>> # Generate a simple hierarchy with 2 main clusters, each with 3 sub-clusters
+    >>> X, y = make_hblobs(n_samples=100, centers=[2, 3])
+    >>>
+    >>> # More complex hierarchy: 2 main clusters, each with 3 sub-clusters,
+    >>> # each with 4 sub-sub-clusters
+    >>> X, y = make_hblobs(n_samples=500, centers=[2, 3, 4], cluster_std=[1.0, 0.5, 0.3])
     """
 
     if isinstance(centers, (list, tuple, ndarray)):

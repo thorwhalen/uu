@@ -1,10 +1,22 @@
 """
 Making diagrams easily.
 
-Need to have graphviz (pip install graphviz), but also need the backend of this python binder:
-Mac: brew install graphviz
-Linux: sudo apt-get install graphviz
-Windows: google it
+`ba` is a simple yet powerful library for creating and visualizing directed graphs.
+It provides a flexible mini-language for defining nodes, edges, and their attributes,
+making it easy to create complex diagrams with minimal code.
+
+Key features:
+- Simple syntax for defining multiple edges at once
+- Inline node formatting with shape mini-language
+- Bulk specification of node properties
+- Support for different graphviz engines
+
+Dependencies:
+- graphviz (pip install graphviz)
+- graphviz binary installation:
+  - Mac: brew install graphviz
+  - Linux: sudo apt-get install graphviz
+  - Windows: google it
 """
 
 import re
@@ -44,6 +56,17 @@ from functools import wraps
 
 
 def add_dflt(func, dflt_if_none):
+    """
+    Add a default return value to a function when it returns None.
+
+    Args:
+        func: The function to wrap
+        dflt_if_none: Default value to return when func returns None
+
+    Returns:
+        A wrapped function that returns dflt_if_none when func returns None
+    """
+
     @wraps(func)
     def wrapped_func(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -58,6 +81,14 @@ def add_dflt(func, dflt_if_none):
 def re_compile(pattern, flags=0, **dflt_if_none):
     """Get a `re.Pattern` instance (as given by re.compile()) with control over defaults of it's methods.
     Useful to reduce if/else boilerplate when handling the output of search functions (match, search, etc.)
+
+    Args:
+        pattern: Regular expression pattern string
+        flags: Regular expression flags
+        **dflt_if_none: Default values to return when regex methods return None
+
+    Returns:
+        Enhanced regex pattern object with default handling
 
     Example;
     >>> dflt_result = type('dflt_search_result', (), {'groupdict': lambda x: {}})()
@@ -261,88 +292,66 @@ def dgdisp(
     **digraph_kwargs,
 ):
     """
-    Make a Dag image flexibly.
-
+    Create a directed graph visualization using a flexible mini-language.
+    
+    This is the main interface function of the ba library. It converts text-based diagram
+    specifications into graphviz Digraph objects that can be displayed or saved.
+    
     Quick links:
     - attributes: https://www.graphviz.org/doc/info/attrs.html
     - shapes: https://www.graphviz.org/doc/info/shapes.html#polygon
 
-    Has a mini-language by default (called `ModifiedDot`).
+    The mini-language (`ModifiedDot` by default) supports:
+    
+    1. Edge paths: Specify multiple edges in sequence
+       `node1 -> node2 -> node3`
+       
+    2. Bulk connections: Create many-to-many connections with a single line
+       `node1, node2 -> node3, node4` creates all possible edges between groups
+       
+    3. Node shape shorthand: Format nodes inline using special characters
+       `[node]` for box, `(node)` for circle, etc.
+       
+    4. Bulk node attributes: Apply attributes to multiple nodes at once
+       `node1, node2: circle` or `node3: {"shape": "box", "color": "red"}`
+       
+    5. Default overrides: Modify default settings within the diagram
+       `--dflt_node_attr: shape` or `--fillcolor: red`
+       
+    6. Comments: Use # for comments
+       `# This is a comment`
 
-    Example:
-    ```
-    dgdisp(\"\"\"
-        key, wf: circle
-        chk: doublecircle
-        fv: {"shape": "plaintext", "fontcolor": "blue"}
-        key -> wf tag
-        wf -> [chunker] -> chk -> /featurizer/ -> fv
-        fv tag -> ([model])
-        \"\"\"
-        )
-    ```
+    Args:
+        commands: String with diagram specifications or parsed commands
+        node_shapes: Dict mapping character tuples to shape names, overriding defaults
+        attrs_for_node: Dict mapping node names to attribute dicts
+        minilang: Language processor object with parser and interpreter methods
+        engine: Graphviz layout engine name ('dot', 'neato', 'fdp', etc.)
+        **digraph_kwargs: Additional arguments passed to graphviz.Digraph
 
-    ```
-    d = dgdisp(\"\"\"
-        group_tags, orig_tags -> [mapping] -> tags  # many-to-1 and path (chain) example
-        predicted_tags, \\tags/ -> /confusion_matrix/  # you can format the shape of nodes inplace
-        predict_proba, tag_list -> [[predict]] -> /predicted_tags\\
-        group_tags: {"fillcolor": "red", "fontcolor": "red"}  # you can specify node attributes as json
-        orig_tags [fontsize=30 fontcolor=blue]  # you can write graphviz lines as is
-        # tag_list [shape=invhouse fontcolor=green]  # you can comment out lines
-        \"\"\", format='svg')
-        d.render('svg')
-    ```
-    With ModifiedDot you can:
+    Returns:
+        graphviz.Digraph: A Digraph object that can be displayed or saved
 
-    - specify a bunch of edges at once in a path. For example, a line such as this:
-        ```node1 -> node2 -> node3 -> node4```
-    will result in these edges
-    ```
-    [('node1', 'node2'), ('node2', 'node3'), ('node3', 'node4')]
-    ```
-
-    - specify 1-to-many, many-to-1 (stars) and many-to-many (bipartite) edges in bulk like this:
-    ```
-    node1, node2 -> node3, node4, node5  # bipartite graph
-    ```
-
-    - use shorthands to shape nodes (see `ModifiedDot.shape_for_chars` for the shape minilanguage, and
-        know that you can specify your own additions/modifications)
-
-    - specify node properties in bulk like this:
-    ```
-    node1, node2, node3 : node_attrs
-    ```
-
-    - specify defaults dynamically, within the statements:
-    ```
-    --fillcolor: red
-    --shape: square
-    ...
-    ```
-
-    :param commands: The commands (edge and node specifications)
-    :param node_shapes: Extra tuple-to-shape mappings.
-        Used to add to, or override the existing defaults (see them here: `dgdisp.shape_for_chars`).
-        This dict constitutes the mini-language used to give shapes to nodes on the fly.
-    :param attrs_for_node: See https://www.graphviz.org/doc/info/attrs.html
-    :param minilang: Object that populates the graph. Needs a parser and an interpreter method.
-    :param engine:
-        dot - "hierarchical" or layered drawings of directed graphs.
-            This is the default tool to use if edges have directionality.
-        neato - "spring model'' layouts.  This is the default tool to use if the graph is not too large (about 100 nodes)
-            and you don't know anything else about it. Neato attempts to minimize a global energy function,
-            which is equivalent to statistical multi-dimensional scaling.
-        fdp - "spring model'' layouts similar to those of neato, but does this by reducing forces rather than
-            working with energy.
-        sfdp - multiscale version of fdp for the layout of large graphs.
-        twopi - radial layouts, after Graham Wills 97. Nodes are placed on concentric circles depending their distance
-            from a given root node.
-        circo - circular layout, after Six and Tollis 99, Kauffman and Wiese 02.
-            This is suitable for certain diagrams of multiple cyclic structures, such as certain telecommunications networks.
-    :param digraph_kwargs: Other kwargs for graphviz.Digraph(**kwargs)
-    :return:
+    Examples:
+        Basic usage with node formatting and edge paths:
+        >>> dgdisp('''
+        ...     key, wf: circle
+        ...     chk: doublecircle
+        ...     fv: {"shape": "plaintext", "fontcolor": "blue"}
+        ...     key -> wf tag
+        ...     wf -> [chunker] -> chk -> /featurizer/ -> fv
+        ...     fv tag -> ([model])
+        ... ''')
+        
+        More complex example with custom attributes:
+        >>> d = dgdisp('''
+        ...     group_tags, orig_tags -> [mapping] -> tags
+        ...     predicted_tags, \\tags/ -> /confusion_matrix/
+        ...     predict_proba, tag_list -> [[predict]] -> /predicted_tags\\
+        ...     group_tags: {"fillcolor": "red", "fontcolor": "red"}
+        ...     orig_tags [fontsize=30 fontcolor=blue]
+        ... ''', format='svg')
+        >>> d.render('diagram')  # Saves to diagram.svg
     """
     attrs_for_node = attrs_for_node or {}
     if node_shapes is False:
@@ -366,6 +375,25 @@ dgdisp.shape_for_chars = ModifiedDot.shape_for_chars
 
 @wraps(dgdisp)
 def horizontal_dgdisp(*args, **kwargs):
+    """
+    Create a horizontally oriented directed graph visualization.
+
+    This is a convenience wrapper around dgdisp that creates graphs with
+    left-to-right layout instead of the default top-to-bottom layout.
+
+    Args:
+        *args: Positional arguments passed to dgdisp
+        **kwargs: Keyword arguments passed to dgdisp
+
+    Returns:
+        graphviz.Digraph: A horizontally oriented Digraph object
+
+    Examples:
+        >>> horizontal_dgdisp('''
+        ...     A -> B -> C
+        ...     B -> D
+        ... ''')
+    """
     command, *_args = args
     return dgdisp('rankdir="LR"\n' + command, *_args, **kwargs)
 

@@ -1,4 +1,13 @@
-"""Machine learning utils"""
+"""
+Machine learning model serialization and attribute management utilities.
+
+This module provides tools for:
+- Extracting, serializing, and deserializing ML model attributes
+- Converting models to JSON-friendly formats
+- Saving and loading model parameters to/from JSON
+- Creating transformers from other objects
+"""
+
 __author__ = 'thor'
 
 import numpy as np
@@ -70,6 +79,23 @@ def trailing_underscore_attributes(obj):
 def trailing_underscore_attributes_with_include_and_exclude(
     obj, include=(), exclude=()
 ):
+    """
+    Get attributes with trailing underscore from an object, with customizable inclusion/exclusion.
+
+    Parameters:
+    ----------
+    obj : object
+        Object whose attributes to extract
+    include : tuple or list
+        Names of attributes to explicitly include regardless of naming
+    exclude : tuple or list
+        Names of attributes to explicitly exclude
+
+    Returns:
+    -------
+    list
+        List of attribute names meeting the criteria
+    """
     return [
         k for k in obj.__dict__ if k in include or (k[-1] == '_' and k not in exclude)
     ]
@@ -84,13 +110,28 @@ def get_model_attributes(
 ):
     """
     Export parameters of the model (or any object) to a dict.
-    :param include: list of attributes to include (the function will automatically include attributes ending with
-    an underscore
-    :param exclude: list of attributes to exclude (to exclude underscore suffixed attributes
-    :param model_name_as_dict_root: Whether to wrap the dict into a dict whose single key is the name of the model
-    :param as_is_types: Types to take as is (all others will be passed on to get_model_attributes recursively
-    :param version: String to include in the "version" field of the json
-    :return: Nothing if dumping to json file, or the json string if argument filepath=None
+
+    Recursively extracts object attributes into a nested dictionary structure,
+    handling various data types appropriately.
+
+    Parameters:
+    ----------
+    model : object
+        The model whose attributes to extract
+    include : tuple, list or str
+        Attribute names to include; if 'all', all attributes are included;
+        if 'all_but_double_underscore', all attributes except those starting with '__'
+    exclude : tuple or list
+        Attribute names to exclude
+    model_name_as_dict_root : bool
+        If True, wrap the attributes dict in a dict with model class name as key
+    as_is_types : tuple
+        Types to take as-is without further recursive processing
+
+    Returns:
+    -------
+    dict
+        Dictionary of model attributes
     """
     if isinstance(
         model, as_is_types
@@ -146,6 +187,30 @@ def get_model_attributes_dict_for_json(
     model_name_as_dict_root=True,
     as_is_types=default_as_is_types,
 ):
+    """
+    Get model attributes as a JSON-compatible dictionary.
+
+    Similar to get_model_attributes but ensures the returned dictionary
+    is fully JSON-serializable.
+
+    Parameters:
+    ----------
+    model : object
+        The model whose attributes to extract
+    include : tuple, list or str
+        Attribute names to include
+    exclude : tuple or list
+        Attribute names to exclude
+    model_name_as_dict_root : bool
+        If True, wrap the attributes dict in a dict with model class name as key
+    as_is_types : tuple
+        Types to take as-is without further recursive processing
+
+    Returns:
+    -------
+    dict
+        JSON-compatible dictionary of model attributes
+    """
     if isinstance(model, as_is_types):
         return model
     elif isinstance(model, np.ndarray):
@@ -170,10 +235,38 @@ def export_model_params_to_json(
     indent=None,
 ):
     """
-    Export parameters of the model to a json file or return a json string.
-    :param filepath: Filepath to dump the json string to, or "" to just return the string, or None to return the dict
-    :param version: String to include in the "version" field of the json
-    :return: Nothing if dumping to json file, or the json string if argument filepath=None
+    Export parameters of the model to a JSON file or return a JSON string/dict.
+
+    This function extracts model parameters and saves them in a JSON format,
+    either to a file or returned as a string or dictionary.
+
+    Parameters:
+    ----------
+    model : object
+        The model whose parameters to export
+    include : tuple, list or str
+        Attribute names to include
+    exclude : tuple or list
+        Attribute names to exclude
+    model_name_as_dict_root : bool
+        If True, wrap the attributes in a dict with model class name as key
+    as_is_types : tuple
+        Types to take as-is without further recursive processing
+    filepath : str or None
+        Path to save JSON file, empty string to return JSON string,
+        or None to return parameter dict
+    version : str, optional
+        Version string to include in output
+    include_date : bool or str
+        Whether to include current date in output
+    indent : int, optional
+        Indentation level for JSON formatting
+
+    Returns:
+    -------
+    str or dict or None
+        JSON string if filepath='', dict if filepath=None, otherwise None
+        (file is saved instead)
     """
     model_params = get_model_attributes(
         model, include, exclude, model_name_as_dict_root, as_is_types
@@ -208,6 +301,30 @@ def import_model_from_spec(
     field_conversions={}.copy(),
     force_dict_wrap=False,
 ):
+    """
+    Reconstruct a model or object from its specification dictionary.
+
+    This function takes a dictionary specification (typically from JSON)
+    and recreates the corresponding object structure.
+
+    Parameters:
+    ----------
+    spec : dict or other
+        Specification dictionary or other value to convert
+    objects : dict
+        Mapping from class names to class constructors or instances
+    type_conversions : list of tuples
+        List of (type, converter_function) pairs for type-based conversion
+    field_conversions : dict
+        Mapping from field names to converter functions
+    force_dict_wrap : bool
+        If True, always return dictionary even for single-key dicts
+
+    Returns:
+    -------
+    object
+        Reconstructed object or object tree
+    """
     if isinstance(spec, dict):
         model_dict_imported = dict()
         for k, v in spec.items():
@@ -257,6 +374,21 @@ def import_model_from_spec(
 
 
 def json_friendly_dict(obj):
+    """
+    Convert an object to a JSON-serializable form.
+
+    Handles various Python and NumPy types, recursively processing nested structures.
+
+    Parameters:
+    ----------
+    obj : object
+        The object to convert
+
+    Returns:
+    -------
+    object
+        JSON-serializable version of the input
+    """
     if isinstance(obj, dict):
         return {k: json_friendly_dict(v) for k, v in obj.items()}
     elif hasattr(obj, 'tolist') and callable(obj.tolist):
@@ -278,6 +410,13 @@ def json_friendly_dict(obj):
 
 
 class NumpyAwareJSONEncoder(JSONEncoder):
+    """
+    JSON encoder that can handle NumPy arrays and other special types.
+
+    Extends the standard JSONEncoder to properly serialize various NumPy types,
+    SciPy sparse matrices, and other objects with tolist() methods.
+    """
+
     def default(self, obj):
         try:
             super(self.__class__, self).default(self, obj)
