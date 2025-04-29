@@ -1,9 +1,11 @@
 """Selection tools for matching, pairing, and subsetting operations.
 
 This module provides utilities for:
-- Finding nearest neighbors between point sets
-- Generating pairs from iterables based on proximity criteria
-- Selecting sublists based on interval containment
+- Finding nearest neighbors between point sets using efficient algorithms
+- Generating pairs from iterables based on proximity criteria and distance thresholds
+- Selecting sublists based on interval containment for segment coverage
+
+Useful for data preprocessing, matching algorithms, and interval-based filtering.
 """
 
 inf = float('infinity')
